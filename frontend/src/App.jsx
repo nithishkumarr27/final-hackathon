@@ -10,6 +10,7 @@ function App() {
   const [detectionResults, setDetectionResults] = useState(null);
   const [classificationResults, setClassificationResults] = useState(null);
   const [interventionResults, setInterventionResults] = useState(null);
+  console.log('interventionResults: ', interventionResults);
   const [roadmapResults, setRoadmapResults] = useState(null);
   const [recoveryResults, setRecoveryResults] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -284,50 +285,56 @@ function App() {
             </button>
           </div>
 
-          {interventionResults && (
-            <div className="mt-4 p-4 bg-teal-50 rounded-lg border border-teal-200">
-              <h3 className="text-lg font-medium text-teal-800 mb-2">Intervention Plan</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="p-4 bg-white rounded-lg border border-teal-100">
-                  <h4 className="font-semibold text-lg flex items-center text-teal-700">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                    </svg>
-                    Analogies
-                  </h4>
-                  <p className="mt-2 text-gray-600">{interventionResults.analogy}</p>
-                </div>
-                
-                <div className="p-4 bg-white rounded-lg border border-teal-100">
-                  <h4 className="font-semibold text-lg flex items-center text-teal-700">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z" clipRule="evenodd" />
-                    </svg>
-                    Micro-Challenges
-                  </h4>
-                  <ul className="mt-2 space-y-2">
-                    {interventionResults.micro_challenges.map((challenge, idx) => (
-                      <li key={idx} className="flex items-start">
-                        <span className="inline-block mt-1 mr-2 w-2 h-2 rounded-full bg-teal-500"></span>
-                        <span>{challenge}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-                
-                <div className="p-4 bg-white rounded-lg border border-teal-100">
-                  <h4 className="font-semibold text-lg flex items-center text-teal-700">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                      <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
-                      <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
-                    </svg>
-                    Explanations
-                  </h4>
-                  <p className="mt-2 text-gray-600">{interventionResults.explanation}</p>
-                </div>
-              </div>
-            </div>
-          )}
+        {interventionResults && (
+  <div className="mt-4 p-4 bg-teal-50 rounded-lg border border-teal-200">
+    <h3 className="text-lg font-medium text-teal-800 mb-2">Intervention Plan</h3>
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="p-4 bg-white rounded-lg border border-teal-100">
+        <h4 className="font-semibold text-lg flex items-center text-teal-700">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+          </svg>
+          Analogies
+        </h4>
+        <p className="mt-2 text-gray-600">{interventionResults.interventions[0]?.analogy || "No analogy provided"}</p>
+      </div>
+      
+      <div className="p-4 bg-white rounded-lg border border-teal-100">
+        <h4 className="font-semibold text-lg flex items-center text-teal-700">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z" clipRule="evenodd" />
+          </svg>
+          Micro-Challenges
+        </h4>
+        <ul className="mt-2 space-y-2">
+          {interventionResults.interventions[0]?.micro_challenges?.map((challenge, idx) => (
+            <li key={idx} className="flex flex-col items-start p-2 bg-gray-50 rounded">
+              <span className="font-medium text-sm">{challenge.title || `Challenge ${idx + 1}`}</span>
+              <p className="text-sm text-gray-600 mt-1">{challenge.description}</p>
+              {challenge.solution && (
+                <details className="mt-1 text-sm">
+                  <summary className="text-teal-600 cursor-pointer">Solution</summary>
+                  <p className="text-gray-600 mt-1">{challenge.solution}</p>
+                </details>
+              )}
+            </li>
+          ))}
+        </ul>
+      </div>
+      
+      <div className="p-4 bg-white rounded-lg border border-teal-100">
+        <h4 className="font-semibold text-lg flex items-center text-teal-700">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+            <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+            <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
+          </svg>
+          Explanations
+        </h4>
+        <p className="mt-2 text-gray-600">{interventionResults.interventions[0]?.explanation || "No explanation provided"}</p>
+      </div>
+    </div>
+  </div>
+)}
         </section>
 
         {/* Agent 4: Roadmap Adjustment */}
@@ -358,7 +365,7 @@ function App() {
                 <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-amber-300"></div>
                 
                 <div className="space-y-6 pl-10">
-                  {roadmapResults.roadmap.map((module, idx) => (
+                  {roadmapResults.roadmap.modules.map((module, idx) => (
                     <div key={idx} className="relative">
                       <div className="absolute -left-7 top-4 w-6 h-6 rounded-full bg-amber-500 flex items-center justify-center text-white font-bold">
                         {idx + 1}

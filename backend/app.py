@@ -101,47 +101,73 @@ def detect_misconceptions_tool(code: str, quiz_logs: str) -> list:
 @tool
 def classify_misconception_tool(candidate: dict) -> dict:
     """Classifies a misconception candidate using RAG-enhanced analysis."""
+    # Ensure required fields exist with defaults
+    candidate.setdefault("tag", "Unknown")
+    candidate.setdefault("description", f"Potential misconception about {candidate.get('tag', 'Unknown')}")
+    candidate.setdefault("confidence", 50)
+    candidate.setdefault("location", "General")
+    
+    # Get RAG context
     rag_results = retriever.get_relevant_documents(candidate["description"])
     rag_context = "\n".join([doc.page_content for doc in rag_results])
     
     prompt = f"""
-    Classify this misconception using knowledge base:
+    Classify this programming misconception using the context below:
     
-    CANDIDATE: {json.dumps(candidate)}
+    MISCONCEPTION CANDIDATE:
+    {json.dumps(candidate, indent=2)}
     
-    KNOWLEDGE CONTEXT:
+    RELEVANT CONTEXT:
     {rag_context}
     
     Provide:
-    - Concept: Core concept misunderstood
-    - Category: Fundamental, Syntax, Logic, Optimization, Security
-    - Explanation: 2-3 sentence explanation
-    - Confidence: 0-100%
-    - RagSources: Array of knowledge references
+    - Concept: Specific concept name
+    - Category: Fundamental|Syntax|Logic|Pattern|Antipattern
+    - Explanation: 2-3 sentence technical explanation
+    - Confidence: 0-100% confidence score
+    - RAG_Sources: Array of source excerpts used
     
-    Output ONLY as JSON with keys: concept, category, explanation, confidence, rag_sources
+    Output ONLY as JSON with these exact keys:
+    concept, category, explanation, confidence, rag_sources
     """
-    response = gemini.invoke(prompt)
-    response.content = clean_response(response.content)
+    
     try:
-        result = json.loads(response.content)
+        response = gemini.invoke(prompt)
+        cleaned = clean_response(response.content)
+        result = json.loads(cleaned)
+        
+        # Validate required fields in response
+        result.setdefault("concept", candidate["tag"])
+        result.setdefault("category", "Uncategorized")
+        result.setdefault("explanation", "No explanation available")
+        result.setdefault("confidence", candidate["confidence"])
+        result.setdefault("rag_sources", [])
+        
         result["original_tag"] = candidate["tag"]
         return result
-    except:
+        
+    except Exception as e:
+        print(f"Classification error: {str(e)}")
         return {
-            "concept": "Classification Error",
-            "category": "System",
-            "explanation": "Failed to classify misconception",
+            "concept": candidate["tag"],
+            "category": "System Error",
+            "explanation": f"Classification failed: {str(e)}",
             "confidence": 0,
-            "rag_sources": []
+            "rag_sources": [],
+            "original_tag": candidate["tag"]
         }
-
 @tool
 def generate_intervention_tool(misconception: dict) -> dict:
     """Generates learning interventions for a classified misconception."""
+    # Ensure required fields exist with defaults
+    misconception.setdefault("concept", "Unknown concept")
+    misconception.setdefault("category", "Uncategorized")
+    misconception.setdefault("explanation", "No explanation available")
+    misconception.setdefault("confidence", 50)
+    
     prompt = f"""
     Create learning intervention for:
-    {json.dumps(misconception)}
+    {json.dumps(misconception, indent=2)}
     
     Provide:
     - Analogy: Real-world analogy
@@ -151,27 +177,51 @@ def generate_intervention_tool(misconception: dict) -> dict:
     
     Output ONLY as JSON with keys: analogy, micro_challenges, explanation, estimated_time
     """
-    response = gemini.invoke(prompt)
-    response.content = clean_response(response.content)
+    
     try:
-        return json.loads(response.content)
-    except:
+        response = gemini.invoke(prompt)
+        response.content = clean_response(response.content)
+        result = json.loads(response.content)
+        
+        # Validate required fields in response
+        result.setdefault("analogy", "N/A")
+        result.setdefault("micro_challenges", ["Challenge generation failed"])
+        result.setdefault("explanation", "No explanation generated")
+        result.setdefault("estimated_time", 0)
+        
+        return result
+        
+    except Exception as e:
+        print(f"Intervention generation error: {str(e)}")
         return {
             "analogy": "N/A",
             "micro_challenges": ["System error occurred"],
-            "explanation": "Failed to generate intervention",
+            "explanation": f"Failed to generate intervention: {str(e)}",
             "estimated_time": 0
         }
-
 @tool
 def adjust_roadmap_tool(learner_id: str, interventions: list) -> dict:
-    """Adjusts learning roadmap based on interventions."""
+    """Adjusts learning roadmap based on interventions. 
+    Args:
+        learner_id: The ID of the learner
+        interventions: List of intervention objects containing:
+            - concept: The concept being addressed
+            - analogy: The analogy used
+            - micro_challenges: List of challenges
+            - explanation: Technical explanation
+            - estimated_time: Time required
+    Returns:
+        Dictionary containing:
+            - version: The new roadmap version
+            - modules: List of learning modules
+    """
     current_roadmap = roadmaps_col.find_one(
         {"learner_id": learner_id}, 
         sort=[("version", -1)]
     ) or DEFAULT_ROADMAP
     
-    concepts = ", ".join([i["concept"] for i in interventions])
+    # Extract concepts from interventions
+    concepts = ", ".join([i.get("concept", "Unknown concept") for i in interventions])
     
     prompt = f"""
     Adjust roadmap for learner {learner_id} based on:
@@ -189,47 +239,74 @@ def adjust_roadmap_tool(learner_id: str, interventions: list) -> dict:
     - version: Increment by 1
     - modules: Array of {{title, description, status, tags}}
     """
-    response = gemini.invoke(prompt)
-    response.content = clean_response(response.content)
+    
     try:
+        response = gemini.invoke(prompt)
+        response.content = clean_response(response.content)
         new_roadmap = json.loads(response.content)
         new_roadmap["version"] = current_roadmap.get("version", 0) + 1
+        new_roadmap["learner_id"] = learner_id
         return new_roadmap
-    except:
+    except Exception as e:
+        print(f"Roadmap adjustment error: {str(e)}")
         return current_roadmap
-
 @tool
 def track_recovery_tool(learner_id: str, roadmap: dict) -> dict:
-    """Tracks confidence recovery progress for a learner."""
-    completed = sum(1 for m in roadmap["modules"] if m["status"] == "completed")
-    total = len(roadmap["modules"])
-    progress = int((completed / total) * 100) if total > 0 else 0
-    
-    prompt = f"""
-    Generate recovery metrics for learner {learner_id}:
-    
-    Progress: {progress}% completed
-    Modules: {total}
-    Adjusted: {sum(1 for m in roadmap['modules'] if m.get('status') == 'adjusted')}
-    
-    Output:
-    - ConfidenceIndex: 0-100 score
-    - Timeline: Array of {{date, description, status}}
-    - Flags: Array of critical issues
-    
-    Output ONLY as JSON with keys: confidence_index, timeline, flags
+    """Tracks confidence recovery progress for a learner.
+    Args:
+        learner_id: ID of the learner
+        roadmap: Dictionary containing:
+            - modules: List of module dictionaries with status
+            - version: Roadmap version
+    Returns:
+        Dictionary with:
+            - confidence_index: 0-100 score
+            - timeline: Array of recovery events
+            - flags: Array of critical issues
     """
-    response = gemini.invoke(prompt)
-    response.content = clean_response(response.content)
     try:
-        return json.loads(response.content)
-    except:
+        # Calculate completion metrics
+        completed = sum(1 for m in roadmap.get("modules", []) 
+                       if m.get("status") == "completed")
+        adjusted = sum(1 for m in roadmap.get("modules", []) 
+                      if m.get("status") == "adjusted")
+        total = len(roadmap.get("modules", []))
+        
+        progress = int((completed / total) * 100) if total > 0 else 0
+        
+        # Generate recovery metrics
+        prompt = f"""
+        Generate recovery metrics for learner {learner_id}:
+        
+        Progress: {progress}% completed
+        Modules: {total}
+        Adjusted: {adjusted}
+        Version: {roadmap.get("version", 1)}
+        
+        Output as JSON with these exact keys:
+        - confidence_index: 0-100 score
+        - timeline: Array of {{date, description, status}}
+        - flags: Array of critical issues
+        """
+        
+        response = gemini.invoke(prompt)
+        cleaned = clean_response(response.content)
+        result = json.loads(cleaned)
+        
+        # Ensure required fields
+        result.setdefault("confidence_index", progress)
+        result.setdefault("timeline", [])
+        result.setdefault("flags", [])
+        
+        return result
+        
+    except Exception as e:
+        print(f"Recovery tracking error: {str(e)}")
         return {
-            "confidence_index": progress,
+            "confidence_index": progress if 'progress' in locals() else 0,
             "timeline": [],
-            "flags": [{"type": "system_error", "message": "Failed to generate metrics"}]
+            "flags": [{"type": "system_error", "message": str(e)}]
         }
-
 # Default roadmap
 DEFAULT_ROADMAP = {
     "modules": [
@@ -438,37 +515,55 @@ def classify_endpoint():
     
     misconceptions = []
     for candidate in candidates:
-        # Run classification agent
-        agent_input = {
-            "input": f"Classify this misconception candidate: {candidate['tag']}",
-            "candidate": candidate
-        }
-        result = classification_agent.invoke(agent_input)
-        
-        if "output" in result:
-            try:
-                classified = json.loads(result["output"])
-                misconceptions.append(classified)
-                
-                # Store in MongoDB
-                if learner_id:
-                    misconceptions_col.insert_one({
-                        "learner_id": learner_id,
-                        "type": "classified",
-                        "misconception": classified,
-                        "timestamp": datetime.utcnow()
-                    })
-            except:
-                misconceptions.append({
-                    "concept": "Classification Error",
-                    "category": "System",
-                    "explanation": "Failed to classify",
-                    "confidence": 0,
-                    "rag_sources": []
+        try:
+            # Ensure candidate is properly structured for the tool
+            tool_input = {
+                "candidate": {
+                    "tag": candidate.get("tag", "Unknown"),
+                    "description": candidate.get("description", ""),
+                    "confidence": candidate.get("confidence", 50),
+                    "location": candidate.get("location", "General")
+                }
+            }
+            
+            # Call the classification tool with properly structured input
+            result = classify_misconception_tool.run(tool_input)
+            
+            # Parse the result if it's a string
+            if isinstance(result, str):
+                try:
+                    result = json.loads(result)
+                except json.JSONDecodeError:
+                    result = {
+                        "concept": candidate.get("tag", "Parse Error"),
+                        "category": "System",
+                        "explanation": "Failed to parse classification",
+                        "confidence": 0,
+                        "rag_sources": []
+                    }
+            
+            # Store in MongoDB
+            if learner_id:
+                misconceptions_col.insert_one({
+                    "learner_id": learner_id,
+                    "type": "classified",
+                    "misconception": result,
+                    "timestamp": datetime.utcnow()
                 })
+                
+            misconceptions.append(result)
+            
+        except Exception as e:
+            print(f"Classification error: {str(e)}")
+            misconceptions.append({
+                "concept": candidate.get("tag", "Error") if isinstance(candidate, dict) else "Error",
+                "category": "System",
+                "explanation": f"Classification failed: {str(e)}",
+                "confidence": 0,
+                "rag_sources": []
+            })
     
     return jsonify({"misconceptions": misconceptions})
-
 @app.route('/api/correct', methods=['POST'])
 def correct_endpoint():
     data = request.json
@@ -477,39 +572,67 @@ def correct_endpoint():
     
     interventions = []
     for misconception in misconceptions:
-        # Run intervention agent
-        agent_input = {
-            "input": f"Create intervention for misconception: {misconception['concept']}",
-            "misconception": misconception
-        }
-        result = intervention_agent.invoke(agent_input)
-        
-        if "output" in result:
-            try:
-                intervention = json.loads(result["output"])
-                interventions.append({
-                    "concept": misconception["concept"],
-                    **intervention
-                })
+        try:
+            # Ensure we have a proper misconception dictionary
+            if not isinstance(misconception, dict):
+                misconception = {
+                    "concept": str(misconception),
+                    "category": "Uncategorized",
+                    "explanation": "No explanation provided",
+                    "confidence": 50
+                }
+            
+            # Prepare the proper input structure for the tool
+            tool_input = {
+                "misconception": {
+                    "concept": misconception.get("concept", "Unknown concept"),
+                    "category": misconception.get("category", "Uncategorized"),
+                    "explanation": misconception.get("explanation", "No explanation available"),
+                    "confidence": misconception.get("confidence", 50),
+                    "original_tag": misconception.get("original_tag", ""),
+                    "rag_sources": misconception.get("rag_sources", [])
+                }
+            }
+            
+            # Call the intervention tool directly
+            raw_result = generate_intervention_tool.run(tool_input)
+            
+            # Parse the result
+            if isinstance(raw_result, str):
+                intervention = json.loads(clean_response(raw_result))
+            else:
+                intervention = raw_result
+            
+            # Ensure the intervention has the required structure
+            intervention.setdefault("analogy", "N/A")
+            intervention.setdefault("micro_challenges", ["Challenge generation failed"])
+            intervention.setdefault("explanation", "No explanation generated")
+            intervention.setdefault("estimated_time", 0)
+            
+            interventions.append({
+                "concept": misconception["concept"],
+                **intervention
+            })
+            
+            # Store in MongoDB
+            if learner_id:
+                misconceptions_col.update_one(
+                    {"learner_id": learner_id, "misconception.concept": misconception["concept"]},
+                    {"$set": {"intervention": intervention}},
+                    upsert=True
+                )
                 
-                # Store in MongoDB
-                if learner_id:
-                    misconceptions_col.update_one(
-                        {"learner_id": learner_id, "misconception.concept": misconception["concept"]},
-                        {"$set": {"intervention": intervention}},
-                        upsert=True
-                    )
-            except:
-                interventions.append({
-                    "concept": misconception["concept"],
-                    "analogy": "N/A",
-                    "micro_challenges": ["Intervention failed"],
-                    "explanation": "System error",
-                    "estimated_time": 0
-                })
+        except Exception as e:
+            print(f"Intervention error for {misconception.get('concept', 'unknown')}: {str(e)}")
+            interventions.append({
+                "concept": misconception.get("concept", "Error"),
+                "analogy": "N/A",
+                "micro_challenges": ["Intervention failed"],
+                "explanation": f"System error: {str(e)}",
+                "estimated_time": 0
+            })
     
     return jsonify({"interventions": interventions})
-
 @app.route('/api/adjust-roadmap', methods=['POST'])
 def adjust_roadmap_endpoint():
     data = request.json
@@ -519,65 +642,68 @@ def adjust_roadmap_endpoint():
     if not learner_id:
         return jsonify({"error": "learnerId required"}), 400
     
-    # Run roadmap agent
-    agent_input = {
-        "input": f"Adjust roadmap for learner {learner_id}",
-        "learner_id": learner_id,
-        "interventions": interventions
-    }
-    result = roadmap_agent.invoke(agent_input)
-    
-    
-    if "output" in result:
-        try:
-            new_roadmap = json.loads(result["output"])
-            
-            # Store in MongoDB
-            roadmaps_col.insert_one({
-                "learner_id": learner_id,
-                "version": new_roadmap.get("version", 1),
-                "modules": new_roadmap["modules"],
-                "timestamp": datetime.utcnow()
-            })
-            return jsonify({"roadmap": new_roadmap})
-        except:
-            return jsonify({"error": "Roadmap adjustment failed"}), 500
-    
-    return jsonify({"error": "Invalid agent response"}), 500
-
+    try:
+        # Call the tool directly with properly structured input
+        result = adjust_roadmap_tool.run({
+            "learner_id": learner_id,
+            "interventions": interventions
+        })
+        
+        # Parse the result if it's a string
+        if isinstance(result, str):
+            result = json.loads(clean_response(result))
+        
+        # Store in MongoDB
+        roadmaps_col.insert_one({
+            "learner_id": learner_id,
+            "version": result.get("version", 1),
+            "modules": result.get("modules", []),
+            "timestamp": datetime.utcnow()
+        })
+        
+        return jsonify({"roadmap": result})
+    except Exception as e:
+        print(f"Roadmap adjustment failed: {str(e)}")
+        return jsonify({
+            "error": "Roadmap adjustment failed",
+            "details": str(e)
+        }), 500
 @app.route('/api/track-recovery', methods=['POST'])
 def track_recovery_endpoint():
     data = request.json
     learner_id = data.get('learnerId')
     roadmap = data.get('roadmap')
     
-    if not learner_id:
-        return jsonify({"error": "learnerId required"}), 400
+    if not learner_id or not roadmap:
+        return jsonify({"error": "learnerId and roadmap required"}), 400
     
-    # Run recovery agent
-    agent_input = {
-        "input": f"Track recovery for learner {learner_id}",
-        "learner_id": learner_id,
-        "roadmap": roadmap
-    }
-    result = recovery_agent.invoke(agent_input)
-    
-    if "output" in result:
-        try:
-            recovery = json.loads(result["output"])
-            
-            # Store in MongoDB
-            progress_col.insert_one({
-                "learner_id": learner_id,
-                "roadmap_version": roadmap.get("version", 0),
-                "confidence_index": recovery["confidence_index"],
-                "timestamp": datetime.utcnow()
-            })
-            return jsonify(recovery)
-        except:
-            return jsonify({"error": "Recovery tracking failed"}), 500
-    
-    return jsonify({"error": "Invalid agent response"}), 500
-
+    try:
+        # Call the tool directly
+        result = track_recovery_tool.run({
+            "learner_id": learner_id,
+            "roadmap": roadmap
+        })
+        
+        # Parse if needed
+        if isinstance(result, str):
+            result = json.loads(clean_response(result))
+        
+        # Store in MongoDB
+        progress_col.insert_one({
+            "learner_id": learner_id,
+            "roadmap_version": roadmap.get("version", 0),
+            "confidence_index": result.get("confidence_index", 0),
+            "timeline": result.get("timeline", []),
+            "flags": result.get("flags", []),
+            "timestamp": datetime.utcnow()
+        })
+        
+        return jsonify(result)
+    except Exception as e:
+        print(f"Recovery tracking failed: {str(e)}")
+        return jsonify({
+            "error": "Recovery tracking failed",
+            "details": str(e)
+        }), 500
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
