@@ -1,0 +1,11 @@
+Flask
+Flask-CORS
+python-dotenv
+pymongo
+langchain
+langchain-google-genai
+langchain-community
+faiss-cpu
+sentence-transformers
+numpy
+requests

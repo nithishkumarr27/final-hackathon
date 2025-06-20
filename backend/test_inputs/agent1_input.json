@@ -1,0 +1,48 @@
+{
+  "learner_id": "student_123",
+  "code": "def calculate_average(numbers):\n    total = 0\n    for i in range(len(numbers)):\n        total = total + numbers[i]\n    average = total / len(numbers)\n    return average\n\n# Test the function\nmy_list = [1, 2, 3, 4, 5]\nresult = calculate_average(my_list)\nprint(f'The average is: {result}')\n\n# This will cause an error\nprint(f'The total was: {total}')",
+  "error_logs": [
+    {
+      "error_type": "NameError",
+      "message": "name 'total' is not defined",
+      "line_number": 12,
+      "timestamp": "2024-01-15T10:28:00Z"
+    }
+  ],
+  "quiz_responses": [
+    {
+      "question_id": "q1",
+      "topic": "variable_scope",
+      "question_type": "multiple_choice",
+      "user_answer": "A",
+      "correct_answer": "C",
+      "correct": false,
+      "timestamp": "2024-01-15T10:30:00Z"
+    },
+    {
+      "question_id": "q2", 
+      "topic": "variable_scope",
+      "question_type": "code_completion",
+      "user_answer": "print(local_var)",
+      "correct_answer": "print(global_var)",
+      "correct": false,
+      "timestamp": "2024-01-15T10:32:00Z"
+    },
+    {
+      "question_id": "q3",
+      "topic": "loops",
+      "question_type": "debugging",
+      "user_answer": "while i <= 10:",
+      "correct_answer": "while i < 10:",
+      "correct": false,
+      "timestamp": "2024-01-15T10:35:00Z"
+    }
+  ],
+ 
+  "behavioral_patterns": {
+    "session_duration": 45,
+    "help_requests": 3,
+    "code_submissions": 7,
+    "error_frequency": 0.4
+  }
+}

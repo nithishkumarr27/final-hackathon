@@ -1,0 +1,84 @@
+{
+  "misconceptions": [
+    {
+      "id": "mc001",
+      "category": "variable_scope",
+      "title": "Global vs Local Variable Confusion",
+      "description": "Students confuse global and local variable scope, expecting local variables to be accessible outside their function",
+      "common_symptoms": [
+        "NameError when accessing local variables outside function",
+        "Unexpected variable values in nested scopes",
+        "Confusion about variable lifetime"
+      ],
+      "corrective_strategies": [
+        "Visual scope diagrams",
+        "Step-by-step execution tracing",
+        "Hands-on scope exercises"
+      ],
+      "examples": [
+        "def func(): x = 5; print(x)  # x not accessible outside",
+        "Expecting global x to change when modified locally without 'global' keyword"
+      ]
+    },
+    {
+      "id": "mc002", 
+      "category": "loop_logic",
+      "title": "Loop Termination Misconception",
+      "description": "Students struggle with proper loop termination conditions, leading to infinite loops or off-by-one errors",
+      "common_symptoms": [
+        "Infinite loops due to incorrect termination conditions",
+        "Off-by-one errors in range() functions",
+        "Confusion about when loop variables are updated"
+      ],
+      "corrective_strategies": [
+        "Loop visualization tools",
+        "Trace tables for loop execution",
+        "Interactive loop debugging exercises"
+      ],
+      "examples": [
+        "while i < 10: print(i)  # forgot to increment i",
+        "for i in range(10): accessing index 10 in list of length 10"
+      ]
+    },
+    {
+      "id": "mc003",
+      "category": "data_types",
+      "title": "Mutable vs Immutable Objects",
+      "description": "Students confuse behavior of mutable (lists, dicts) vs immutable (strings, tuples) objects",
+      "common_symptoms": [
+        "Unexpected behavior when modifying strings",
+        "Confusion about list aliasing",
+        "Not understanding why some operations return new objects"
+      ],
+      "corrective_strategies": [
+        "Memory model visualizations",
+        "Side-by-side mutable/immutable comparisons",
+        "Interactive object mutation exercises"
+      ],
+      "examples": [
+        "s = 'hello'; s[0] = 'H'  # strings are immutable",
+        "list1 = list2; list1.append(x)  # both lists modified"
+      ]
+    }
+  ],
+  "remediation_techniques": [
+    {
+      "technique": "visual_analogy",
+      "description": "Use real-world analogies to explain programming concepts",
+      "effectiveness": 0.85,
+      "best_for": ["abstract_concepts", "beginners"]
+    },
+    {
+      "technique": "interactive_debugging",
+      "description": "Step-through debugging with immediate feedback",
+      "effectiveness": 0.92,
+      "best_for": ["logic_errors", "intermediate_learners"]
+    },
+    {
+      "technique": "peer_explanation",
+      "description": "Students explain concepts to each other",
+      "effectiveness": 0.78,
+      "best_for": ["concept_reinforcement", "collaborative_learning"]
+    }
+  ]
+}
